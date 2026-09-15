@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  rocky-voice-studio:
+    build: .
+    container_name: rocky-voice-studio
+    restart: unless-stopped
+    ports:
+      - "3456:3456"
+    environment:
+      - PORT=3456
+      - NODE_ENV=production
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - DEFAULT_VOICE_ID=9v8bxagMX43JiaF92sqe
+    volumes:
+      - rocky_data:/app/data
+      - rocky_audio:/app/public/generated
+
+volumes:
+  rocky_data:
+  rocky_audio:

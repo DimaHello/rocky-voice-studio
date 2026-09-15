@@ -1,0 +1,6 @@
+node_modules
+.env
+data/history.json
+public/generated
+server.log
+site.tar.gz

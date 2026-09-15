@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Голосовая студия Лиса Рокки | Hello Park</title>
+  <link rel="icon" type="image/png" href="/assets/logo-secondary.png" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <img src="/assets/hello-park-logo.png" alt="Hello Park" class="brand-logo" />
+        <div class="header-divider"></div>
+        <div class="header-title-group">
+          <h1 class="header-title">Голосовая студия Лиса Рокки</h1>
+          <span class="header-subtitle">Генерация официальных реплик персонажа для парков</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Notice Banner for Billing / Info -->
+    <div id="billingBanner" class="alert-banner hidden">
+      <div class="alert-icon">⚠️</div>
+      <div class="alert-content">
+        <div class="alert-title">Подписка закончилась</div>
+        <div class="alert-desc">
+          Обратитесь к аккаунт-менеджеру, чтобы продлить доступ к генерациям.
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Studio Layout -->
+    <main class="studio-layout">
+      <!-- Left: Generation Block (Unified, Clean, Minimal) -->
+      <section class="editor-section">
+        <div class="studio-card">
+          <!-- Top Bar: Minimal Speaker Pill & Quick Tags -->
+          <div class="studio-card-header">
+            <div class="speaker-pill" title="Текущий голос">
+              <img src="/assets/rocky.png" alt="Рокки" class="speaker-mini-avatar" />
+              <span class="speaker-pill-name">Лис Рокки Рус</span>
+            </div>
+
+            <div class="toolbar-chips">
+              <span class="toolbar-label">Подсказки:</span>
+              <button class="chip-tag" data-insert="... ">⏸️ Пауза</button>
+              <button class="chip-tag" data-insert="[радостно] ">🎉 Радостно</button>
+              <button class="chip-tag" data-insert="[шепотом] ">🤫 Шепотом</button>
+              <button class="chip-tag" data-insert="! ">💥 Восклицание</button>
+            </div>
+          </div>
+
+          <!-- Textarea Input Area -->
+          <div class="textarea-container">
+            <textarea
+              id="scriptInput"
+              class="script-textarea"
+              placeholder="Напишите реплику для Лиса Рокки... Например: Привет! Добро пожаловать в космическое измерение Hello Park! Кто готов к игре?"
+              rows="7"
+            ></textarea>
+          </div>
+
+          <!-- Bottom Action Bar (Integrated) -->
+          <div class="editor-bottom-bar">
+            <div class="bottom-left-meta">
+              <span id="charCount" class="char-counter">0 / 5 000</span>
+              <button id="btnClearText" class="btn-clear-link">Очистить</button>
+            </div>
+
+            <div class="bottom-right-action">
+              <button id="btnGenerate" class="btn-compact-generate">
+                <span class="btn-spinner hidden" id="genSpinner"></span>
+                <span class="btn-text">Сгенерировать речь</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Embedded Audio Player (Directly inside generation block when ready) -->
+          <div id="playerSection" class="embedded-player hidden">
+            <audio id="audioElement" preload="metadata"></audio>
+            <div class="player-row">
+              <button id="btnPlayPause" class="btn-play-pause">▶</button>
+              <div class="player-progress-area">
+                <input type="range" id="audioScrubber" min="0" max="100" value="0" step="0.1" class="scrubber-input" />
+                <div class="player-time-meta">
+                  <span id="timeCurrent">0:00</span> / <span id="timeDuration">0:00</span>
+                </div>
+              </div>
+              <a id="btnDownloadAudio" href="#" download="rocky_voice.mp3" class="btn-compact-download" title="Скачать аудиофайл">
+                ⬇️ Скачать MP3
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Settings & History Sidebar -->
+      <aside class="sidebar-section">
+        <div class="sidebar-tabs">
+          <button class="tab-btn active" data-tab="tab-settings">Настройки</button>
+          <button class="tab-btn" data-tab="tab-history">
+            История <span class="history-count-badge" id="historyCount">0</span>
+          </button>
+        </div>
+
+        <!-- Tab 1: Settings -->
+        <div id="tab-settings" class="tab-pane active">
+          <!-- Preset Intonation Selector -->
+          <div class="setting-group">
+            <label class="setting-label">Интонация / Сценарий</label>
+            <select id="presetSelect" class="form-select">
+              <option value="standard" selected>Стандартный режим (Сбалансированный)</option>
+              <option value="energetic_game">🚀 Зовёт играть / Старт миссии</option>
+              <option value="birthday_hero">🎂 День рождения / Поздравление</option>
+              <option value="secret_whisper">🤫 Секрет / Таинственная подсказка</option>
+              <option value="victory_prize">🏆 Победа / Награждение</option>
+              <option value="welcome_guest">👋 Приветствие гостей</option>
+              <option value="rules_calm">📢 Правила и безопасность</option>
+            </select>
+            <span id="presetDesc" class="setting-subtext">Сбалансированные параметры голоса для обычных реплик и объявлений</span>
+          </div>
+
+          <div class="setting-divider"></div>
+
+          <!-- Voice Selector -->
+          <div class="setting-group">
+            <label class="setting-label">Голос персонажа</label>
+            <select id="voiceSelect" class="form-select">
+              <option value="9v8bxagMX43JiaF92sqe" selected>🦊 Лис Рокки (Русский)</option>
+              <option value="voice_en" disabled>🦊 Rocky (English) — Скоро</option>
+              <option value="voice_az" disabled>🦊 Tülkü Rokki (Azərbaycan) — Скоро</option>
+            </select>
+          </div>
+
+          <!-- Model Selector (Default Eleven v3) -->
+          <div class="setting-group">
+            <label class="setting-label">Модель нейросети</label>
+            <select id="modelSelect" class="form-select">
+              <option value="eleven_v3" selected>Eleven v3 (По умолчанию)</option>
+              <option value="eleven_multilingual_v2">Eleven Multilingual v2</option>
+              <option value="eleven_turbo_v2_5">Eleven Turbo v2.5 (Быстрая)</option>
+            </select>
+          </div>
+
+          <div class="setting-divider"></div>
+
+          <!-- Sliders with clean minimal explanations -->
+          <div class="setting-group">
+            <div class="slider-header">
+              <span class="setting-label">Эмоциональность (Stability)</span>
+              <span class="slider-value" id="valStability">0.50</span>
+            </div>
+            <input type="range" id="rangeStability" min="0.1" max="1.0" step="0.05" value="0.50" class="form-range" />
+            <div class="slider-hints">
+              <span>Креативно и живо</span>
+              <span>Ровно и стабильно</span>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="slider-header">
+              <span class="setting-label">Сходство с тембром (Similarity)</span>
+              <span class="slider-value" id="valSimilarity">0.85</span>
+            </div>
+            <input type="range" id="rangeSimilarity" min="0.3" max="1.0" step="0.05" value="0.85" class="form-range" />
+            <div class="slider-hints">
+              <span>Свободный тон</span>
+              <span>Точный эталон Рокки</span>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="slider-header">
+              <span class="setting-label">Выразительность стиля (Style)</span>
+              <span class="slider-value" id="valStyle">0.30</span>
+            </div>
+            <input type="range" id="rangeStyle" min="0.0" max="1.0" step="0.05" value="0.30" class="form-range" />
+          </div>
+
+          <div class="setting-group">
+            <div class="slider-header">
+              <span class="setting-label">Скорость речи (Speed)</span>
+              <span class="slider-value" id="valSpeed">1.00x</span>
+            </div>
+            <input type="range" id="rangeSpeed" min="0.8" max="1.25" step="0.05" value="1.00" class="form-range" />
+          </div>
+
+          <div class="setting-group">
+            <label class="setting-label">Формат звука</label>
+            <select id="formatSelect" class="form-select">
+              <option value="mp3_44100_128" selected>MP3 44.1 kHz (128 kbps)</option>
+              <option value="mp3_44100_192">MP3 44.1 kHz (192 kbps)</option>
+            </select>
+          </div>
+
+          <div class="settings-actions">
+            <button id="btnResetSettings" class="btn-secondary-reset">Сбросить настройки к эталону</button>
+          </div>
+        </div>
+
+        <!-- Tab 2: History -->
+        <div id="tab-history" class="tab-pane">
+          <div id="historyList" class="history-list"></div>
+          <div id="historyEmpty" class="history-empty">
+            <div class="empty-icon">📂</div>
+            <div class="empty-title">Записей пока нет</div>
+            <p class="empty-desc">Сгенерированные файлы будут появляться здесь.</p>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

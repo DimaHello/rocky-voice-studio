@@ -1,0 +1,13 @@
+{
+  "name": "rocky-voice-studio",
+  "version": "1.0.0",
+  "description": "Voice recording and generation studio for Rocky the Fox (Hello Park) via ElevenLabs API",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs"
+  },
+  "keywords": ["elevenlabs", "hello-park", "rocky-fox", "tts"],
+  "author": "Hello Park",
+  "license": "ISC"
+}

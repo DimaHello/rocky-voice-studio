@@ -102,18 +102,24 @@ document.addEventListener('DOMContentLoaded', () => {
     localHistory = [];
   }
 
+  // Статический режим (GitHub Pages): ключ приходит из GitHub Secrets в config.js,
+  // запрос к ElevenLabs уходит напрямую из браузера, без своего сервера.
+  const STATIC_MODE = Boolean(window.ROCKY_CONFIG && window.ROCKY_CONFIG.elevenlabsKey);
+
   // 1. Initial Config Fetch & Local History
   async function init() {
-    try {
-      const res = await fetch('/api/config');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.presets && Array.isArray(data.presets)) {
-          data.presets.forEach(p => { presetsMap[p.id] = p; });
+    if (!STATIC_MODE) {
+      try {
+        const res = await fetch('/api/config');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.presets && Array.isArray(data.presets)) {
+            data.presets.forEach(p => { presetsMap[p.id] = p; });
+          }
         }
+      } catch (err) {
+        console.warn('Config fetch skipped, using built-ins:', err);
       }
-    } catch (err) {
-      console.warn('Config fetch skipped, using built-ins:', err);
     }
     renderLocalHistory();
   }
@@ -303,11 +309,13 @@ document.addEventListener('DOMContentLoaded', () => {
         presetId: presetSelect.value
       };
 
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const res = STATIC_MODE
+        ? await requestElevenLabs(payload)
+        : await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
 
       const contentType = res.headers.get('content-type') || '';
 
@@ -371,6 +379,54 @@ document.addEventListener('DOMContentLoaded', () => {
       genSpinner.classList.add('hidden');
       btnGenerate.querySelector('.btn-text').textContent = 'Сгенерировать речь';
     }
+  }
+
+  // Прямой запрос к ElevenLabs для статического режима (GitHub Pages).
+  // Ответ приводим к тому же виду, что и ответ своего сервера,
+  // чтобы дальше код обработки был общим.
+  async function requestElevenLabs(payload) {
+    const cfg = window.ROCKY_CONFIG || {};
+    const voiceId = payload.voiceId || cfg.defaultVoiceId;
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${encodeURIComponent(payload.outputFormat)}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': cfg.elevenlabsKey,
+        'Content-Type': 'application/json',
+        'Accept': 'audio/mpeg'
+      },
+      body: JSON.stringify({
+        text: payload.text,
+        model_id: payload.modelId,
+        voice_settings: {
+          stability: payload.stability,
+          similarity_boost: payload.similarityBoost,
+          style: payload.style,
+          speed: payload.speed,
+          use_speaker_boost: true
+        }
+      })
+    });
+
+    if (res.ok) return res;
+
+    const errData = await res.json().catch(() => ({}));
+    const detail = errData.detail || {};
+    const isBillingIssue = detail.status === 'payment_issue' || detail.code === 'payment_issue';
+    let message = 'Произошла ошибка при генерации аудио.';
+    if (isBillingIssue) {
+      message = 'Подписка закончилась. Обратитесь к аккаунт-менеджеру, чтобы продлить.';
+    } else if (detail.status === 'missing_permissions') {
+      message = 'Недостаточно прав для генерации голоса. Обратитесь к аккаунт-менеджеру.';
+    } else if (detail.message) {
+      message = detail.message;
+    }
+
+    return new Response(JSON.stringify({ success: false, error: message, isBillingIssue }), {
+      status: res.status,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   // 8. Tabs Handling

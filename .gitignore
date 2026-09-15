@@ -4,3 +4,4 @@ data/history.json
 public/generated
 server.log
 site.tar.gz
+public/config.js

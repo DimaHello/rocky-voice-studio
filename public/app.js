@@ -6,6 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnGenerate = document.getElementById('btnGenerate');
   const genSpinner = document.getElementById('genSpinner');
   const billingBanner = document.getElementById('billingBanner');
+  const generationError = document.getElementById('generationError');
+  const generationErrorTitle = document.getElementById('generationErrorTitle');
+  const generationErrorMessage = document.getElementById('generationErrorMessage');
+  let activeGenerationError = null;
 
   // Sliders & selects
   const presetSelect = document.getElementById('presetSelect');
@@ -90,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     similarity: 0.85,
     style: 0.30,
     speed: 1.00,
-    model: 'eleven_v3',
+    model: 'eleven_v4',
     voice: '9v8bxagMX43JiaF92sqe',
     preset: 'standard'
   };
@@ -105,6 +109,42 @@ document.addEventListener('DOMContentLoaded', () => {
   // Статический режим (GitHub Pages): ключ приходит из GitHub Secrets в config.js,
   // запрос к ElevenLabs уходит напрямую из браузера, без своего сервера.
   const STATIC_MODE = Boolean(window.ROCKY_CONFIG && window.ROCKY_CONFIG.elevenlabsKey);
+
+  const languageOptions = document.querySelectorAll('input[name="interfaceLanguage"]');
+  let currentLanguage = localStorage.getItem('rocky_language') === 'en' ? 'en' : 'ru';
+  const english = {
+    'Голосовая студия Лиса Рокки':'Rocky the Fox Voice Studio', 'Генерация официальных реплик персонажа для парков':'Create official character voiceovers for parks',
+    'Подписка закончилась':'Subscription expired', 'Обратитесь к аккаунт-менеджеру, чтобы продлить доступ к генерациям.':'Contact your account manager to renew access.',
+    'Лис Рокки Рус':'Rocky the Fox · EN', 'Подсказки:':'Suggestions:', '⏸️ Пауза':'⏸️ Pause', '🎉 Радостно':'🎉 Happy', '🤫 Шепотом':'🤫 Whisper', '💥 Восклицание':'💥 Exclamation',
+    'Очистить':'Clear', 'Сгенерировать речь':'Generate speech', '⬇️ Скачать MP3':'⬇️ Download MP3', 'Настройки':'Settings', 'История':'History',
+    'Интонация / Сценарий':'Tone / Scenario', 'Стандартный режим (Сбалансированный)':'Standard (balanced)', '🚀 Зовёт играть / Старт миссии':'🚀 Start a mission', '🎂 День рождения / Поздравление':'🎂 Birthday greeting', '🤫 Секрет / Таинственная подсказка':'🤫 Secret hint', '🏆 Победа / Награждение':'🏆 Victory / Prize', '👋 Приветствие гостей':'👋 Welcome guests', '📢 Правила и безопасность':'📢 Rules and safety',
+    'Голос персонажа':'Character voice', '🦊 Лис Рокки (Русский)':'🦊 Rocky (Russian)', 'Модель нейросети':'AI model', 'Эмоциональность (Stability)':'Emotion (Stability)', 'Креативно и живо':'Creative and lively', 'Ровно и стабильно':'Calm and consistent', 'Сходство с тембром (Similarity)':'Voice similarity', 'Свободный тон':'More variation', 'Точный эталон Рокки':'Closer to Rocky', 'Выразительность стиля (Style)':'Style exaggeration', 'Скорость речи (Speed)':'Speech speed', 'Формат звука':'Audio format', 'Сбросить настройки к эталону':'Reset settings', 'Записей пока нет':'No recordings yet', 'Сгенерированные файлы будут появляться здесь.':'Your generated recordings will appear here.'
+  };
+  const translatable = [...document.querySelectorAll('h1, .header-subtitle, .alert-title, .alert-desc, .speaker-pill-name, .toolbar-label, .chip-tag, #btnClearText, .btn-text, .btn-compact-download, .tab-btn, .setting-label, .slider-hints span, #presetSelect option, #voiceSelect option, #btnResetSettings, .empty-title, .empty-desc')];
+  const original = new Map();
+  for (const el of translatable) for (const node of el.childNodes) if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) original.set(node, node.textContent);
+  function updateModelSettings() {
+    const disabled = modelSelect.value === 'eleven_v4';
+    [rangeStyle, rangeSpeed].forEach(el => { el.disabled = disabled; el.closest('.setting-group').style.opacity = disabled ? '0.45' : ''; });
+  }
+  function applyLanguage(lang) {
+    currentLanguage = lang; document.documentElement.lang = lang;
+    languageOptions.forEach(option => { option.checked = option.value === lang; });
+    try { localStorage.setItem('rocky_language', lang); } catch (_) {}
+    for (const [node, text] of original) { const key = text.trim(); node.textContent = lang === 'en' && english[key] ? text.replace(key, english[key]) : text; }
+    document.title = lang === 'en' ? 'Rocky the Fox Voice Studio | Hello Park' : 'Голосовая студия Лиса Рокки | Hello Park';
+    scriptInput.placeholder = lang === 'en' ? 'Write a line for Rocky the Fox... For example: Hello! Welcome to Hello Park! Who is ready to play?' : 'Напишите реплику для Лиса Рокки... Например: Привет! Добро пожаловать в Hello Park! Кто готов к игре?';
+    voiceSelect.value = lang === 'en' ? 'WBL0P03WvXYaheknMZG4' : '9v8bxagMX43JiaF92sqe';
+    presetDesc.textContent = lang === 'en' ? 'Choose a starting point for your voice settings.' : (presetsMap[presetSelect.value]?.description || '');
+    document.querySelectorAll('.chip-tag')[1].dataset.insert = lang === 'en' ? '[happy] ' : '[радостно] ';
+    document.querySelectorAll('.chip-tag')[2].dataset.insert = lang === 'en' ? '[whispers] ' : '[шепотом] ';
+    if (activeGenerationError) showGenerationError(activeGenerationError);
+  }
+  languageOptions.forEach(option => option.addEventListener('change', () => {
+    if (option.checked) applyLanguage(option.value);
+  }));
+  modelSelect.addEventListener('change', updateModelSettings);
+  applyLanguage(currentLanguage); updateModelSettings();
 
   // 1. Initial Config Fetch & Local History
   async function init() {
@@ -132,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!preset) return;
 
       if (presetDesc) {
-        presetDesc.textContent = preset.description || '';
+        presetDesc.textContent = currentLanguage === 'en' ? 'Settings adjusted for the selected scenario.' : (preset.description || '');
       }
 
       if (preset.voiceSettings) {
@@ -211,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btnResetSettings.addEventListener('click', () => {
     presetSelect.value = DEFAULT_SETTINGS.preset;
     if (presetDesc && presetsMap['standard']) {
-      presetDesc.textContent = presetsMap['standard'].description;
+      presetDesc.textContent = currentLanguage === 'en' ? 'Choose a starting point for your voice settings.' : presetsMap['standard'].description;
     }
 
     rangeStability.value = DEFAULT_SETTINGS.stability;
@@ -227,7 +267,8 @@ document.addEventListener('DOMContentLoaded', () => {
     valSpeed.textContent = DEFAULT_SETTINGS.speed.toFixed(2) + 'x';
 
     modelSelect.value = DEFAULT_SETTINGS.model;
-    voiceSelect.value = DEFAULT_SETTINGS.voice;
+    voiceSelect.value = currentLanguage === 'en' ? 'WBL0P03WvXYaheknMZG4' : DEFAULT_SETTINGS.voice;
+    updateModelSettings();
   });
 
   // 6. Audio Player Logic
@@ -285,15 +326,52 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   }
 
+  const errorMessages = {
+    'RV-001': ['Откройте студию по рабочей ссылке и попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.', 'Open the studio using its usual link and try again. If the problem continues, contact your administrator.'],
+    'RV-002': ['Проверьте подключение к интернету и попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.', 'Check your internet connection and try again. If the problem continues, contact your administrator.'],
+    'RV-003': ['Не удалось получить доступ к голосу. Обратитесь к администратору.', 'Could not access the voice. Contact your administrator.'],
+    'RV-004': ['Исчерпан лимит или возникла проблема с оплатой. Обратитесь к администратору.', 'The quota has been reached or there is a billing problem. Contact your administrator.'],
+    'RV-005': ['Слишком много запросов. Подождите немного и попробуйте ещё раз.', 'Too many requests. Wait a moment and try again.'],
+    'RV-006': ['Проверьте текст и выбранный голос, затем попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.', 'Check your text and selected voice, then try again. If the problem continues, contact your administrator.'],
+    'RV-007': ['Сервис временно недоступен или вернул ошибку. Попробуйте ещё раз позже.', 'The service is unavailable or returned an error. Please try again later.'],
+    'RV-008': ['Получен неожиданный ответ сервиса. Попробуйте ещё раз или обратитесь к администратору.', 'The service returned an unexpected response. Try again or contact your administrator.']
+  };
+  function showGenerationError(code) {
+    activeGenerationError = code;
+    generationErrorTitle.textContent = currentLanguage === 'en' ? 'Could not generate audio' : 'Не удалось создать аудио';
+    generationErrorMessage.textContent = (errorMessages[code] || errorMessages['RV-008'])[currentLanguage === 'en' ? 1 : 0];
+    generationError.classList.remove('hidden');
+  }
+  function errorCodeForResponse(status, data) {
+    if (data.isBillingIssue || data.code === 'payment_issue' || data.code === 'quota_exceeded') return 'RV-004';
+    if (data.code === 'upstream_unreachable') return 'RV-002';
+    if (status === 401 || status === 403) return 'RV-003';
+    if (status === 402) return 'RV-004';
+    if (status === 429) return 'RV-005';
+    if (status === 400 || status === 404 || status === 422) return 'RV-006';
+    if (status >= 500) return 'RV-007';
+    return 'RV-008';
+  }
+  document.getElementById('dismissGenerationError').addEventListener('click', () => {
+    activeGenerationError = null;
+    generationError.classList.add('hidden');
+  });
+
   // 7. Generation Trigger
   btnGenerate.addEventListener('click', async () => {
+    activeGenerationError = null;
+    generationError.classList.add('hidden');
     const text = scriptInput.value.trim();
     if (!text) {
-      alert('Пожалуйста, введите текст для озвучивания Лиса Рокки.');
+      alert(currentLanguage === 'en' ? 'Please enter text for Rocky to read.' : 'Пожалуйста, введите текст для озвучивания Лиса Рокки.');
       scriptInput.focus();
       return;
     }
 
+    if (location.protocol === 'file:' && !STATIC_MODE) {
+      showGenerationError('RV-001');
+      return;
+    }
     setGenerating(true);
 
     try {
@@ -345,12 +423,19 @@ document.addEventListener('DOMContentLoaded', () => {
           billingBanner.classList.remove('hidden');
           billingBanner.scrollIntoView({ behavior: 'smooth' });
         }
-        throw new Error(data.error || 'Произошла ошибка при генерации аудио.');
+        const error = new Error('Generation request failed');
+        error.displayCode = errorCodeForResponse(res.status, data);
+        throw error;
       }
 
       // JSON success
       billingBanner.classList.add('hidden');
       const item = data.item;
+      if (!item || !item.audioUrl) {
+        const error = new Error('Unexpected generation response');
+        error.displayCode = 'RV-008';
+        throw error;
+      }
       loadAudioResult(item.audioUrl);
       audioElement.play().catch(() => {});
       btnPlayPause.textContent = '⏸';
@@ -363,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     } catch (err) {
       console.warn('Сбой генерации:', err);
-      alert(err.message);
+      showGenerationError(err.displayCode || (err instanceof TypeError ? 'RV-002' : 'RV-008'));
     } finally {
       setGenerating(false);
     }
@@ -373,11 +458,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isGen) {
       btnGenerate.disabled = true;
       genSpinner.classList.remove('hidden');
-      btnGenerate.querySelector('.btn-text').textContent = 'Генерация...';
+      btnGenerate.querySelector('.btn-text').textContent = currentLanguage === 'en' ? 'Generating...' : 'Генерация...';
     } else {
       btnGenerate.disabled = false;
       genSpinner.classList.add('hidden');
-      btnGenerate.querySelector('.btn-text').textContent = 'Сгенерировать речь';
+      btnGenerate.querySelector('.btn-text').textContent = currentLanguage === 'en' ? 'Generate speech' : 'Сгенерировать речь';
     }
   }
 
@@ -402,9 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
         voice_settings: {
           stability: payload.stability,
           similarity_boost: payload.similarityBoost,
-          style: payload.style,
-          speed: payload.speed,
-          use_speaker_boost: true
+          ...(payload.modelId === 'eleven_v4' ? {} : { style: payload.style, speed: payload.speed, use_speaker_boost: true })
         }
       })
     });
@@ -423,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
       message = detail.message;
     }
 
-    return new Response(JSON.stringify({ success: false, error: message, isBillingIssue }), {
+    return new Response(JSON.stringify({ success: false, error: message, isBillingIssue, code: detail.status || detail.code }), {
       status: res.status,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -484,8 +567,8 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="history-text">${escapeHtml(item.text)}</div>
         <div class="history-actions">
-          <button class="btn-history-reuse" title="Вставить текст в поле ввода">В редактор</button>
-          ${item.audioUrl || item.audioBlobUrl ? '<button class="btn-history-play">▶ Слушать</button>' : ''}
+          <button class="btn-history-reuse" title="Вставить текст в поле ввода">${currentLanguage === 'en' ? 'Edit text' : 'В редактор'}</button>
+          ${item.audioUrl || item.audioBlobUrl ? `<button class="btn-history-play">▶ ${currentLanguage === 'en' ? 'Play' : 'Слушать'}</button>` : ''}
         </div>
       `;
 

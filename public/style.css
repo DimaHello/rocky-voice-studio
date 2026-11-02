@@ -696,3 +696,73 @@ body {
 .empty-desc {
   font-size: 11px;
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.language-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  margin-left: 24px;
+  padding: 3px;
+  border: 1px solid #e9e9ec;
+  border-radius: 11px;
+  background: #f6f6f7;
+}
+
+.language-picker-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  color: #92929b;
+}
+
+.language-picker-icon svg { width: 17px; height: 17px; }
+.language-option { position: relative; cursor: pointer; }
+.language-option input { position: absolute; opacity: 0; }
+.language-option > span:not(.sr-only) {
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  height: 32px;
+  border-radius: 7px;
+  color: #85858e;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  transition: color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.language-option:hover > span:not(.sr-only) { color: var(--hp-charcoal); }
+.language-option input:checked + span {
+  color: var(--hp-orange);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(24, 24, 27, .12);
+}
+.language-option input:focus-visible + span { outline: 2px solid var(--hp-orange); outline-offset: 2px; }
+
+.generation-error { display: flex; align-items: flex-start; gap: 12px; margin: 0 18px 18px; padding: 14px; border: 1px solid #f3c7bd; border-radius: 10px; background: #fff7f5; color: #762f22; }
+.generation-error.hidden { display: none; }
+.generation-error-icon { display: grid; place-items: center; flex: 0 0 22px; height: 22px; border-radius: 50%; background: #fbe5df; font-size: 13px; font-weight: 700; }
+.generation-error-content { flex: 1; min-width: 0; }
+.generation-error-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+.generation-error-heading span { color: #a65b4e; font-size: 11px; font-weight: 600; }
+.generation-error-content p { margin-top: 3px; font-size: 12px; line-height: 1.5; }
+.generation-error-close { border: 0; background: transparent; color: #a65b4e; font-size: 21px; line-height: 20px; cursor: pointer; }
+.generation-error-close:focus-visible { outline: 2px solid var(--hp-orange); outline-offset: 2px; }
+
+@media (max-width: 600px) {
+  .app-header { gap: 12px; flex-wrap: wrap; }
+  .header-left { min-width: 0; }
+  .language-picker { margin-left: auto; }
+}

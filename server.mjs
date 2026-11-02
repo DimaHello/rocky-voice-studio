@@ -224,7 +224,7 @@ const server = http.createServer(async (req, res) => {
         const {
           text,
           voiceId = DEFAULT_VOICE_ID,
-          modelId = 'eleven_v3',
+          modelId = 'eleven_v4',
           stability = 0.5,
           similarityBoost = 0.85,
           style = 0.30,
@@ -252,21 +252,27 @@ const server = http.createServer(async (req, res) => {
           voice_settings: {
             stability: Number(stability),
             similarity_boost: Number(similarityBoost),
-            style: Number(style),
-            speed: Number(speed),
-            use_speaker_boost: true
+            ...(modelId === 'eleven_v4' ? {} : { style: Number(style), speed: Number(speed), use_speaker_boost: true })
           }
         };
 
-        const elevenRes = await fetch(elevenUrl, {
-          method: 'POST',
-          headers: {
-            'xi-api-key': ELEVENLABS_API_KEY,
-            'Content-Type': 'application/json',
-            'Accept': 'audio/mpeg'
-          },
-          body: JSON.stringify(elevenPayload)
-        });
+        let elevenRes;
+        try {
+          elevenRes = await fetch(elevenUrl, {
+            method: 'POST',
+            headers: {
+              'xi-api-key': ELEVENLABS_API_KEY,
+              'Content-Type': 'application/json',
+              'Accept': 'audio/mpeg'
+            },
+            body: JSON.stringify(elevenPayload)
+          });
+        } catch (err) {
+          console.error('[Voice Engine Connection Error]', err.message);
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, code: 'upstream_unreachable' }));
+          return;
+        }
 
         if (!elevenRes.ok) {
           const errData = await elevenRes.json().catch(() => ({}));
@@ -289,8 +295,8 @@ const server = http.createServer(async (req, res) => {
             success: false,
             error: friendlyMessage,
             status: elevenRes.status,
+            code: errData?.detail?.status || errData?.detail?.code,
             isBillingIssue,
-            raw: errData
           }));
           return;
         }
@@ -323,7 +329,7 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         console.error('[Generate Error]', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Внутренняя ошибка сервера: ' + err.message }));
+        res.end(JSON.stringify({ success: false, error: 'Internal server error' }));
       }
     });
     return;
